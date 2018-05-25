@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-exporter
+  namespace: monitoring
+  labels:
+    app: vault-exporter
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: vault-exporter
+    spec:
+      containers:
+      - name: vault-exporter
+        env:
+        - name: VAULT_ADDR
+          value: '{{ .Values.Installation.V1.Auth.Vault.Address }}'
+        image: quay.io/giantswarm/vault-exporter:[[ .SHA ]]
+        args:
+        - "--vault-tls-cacert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 9410
+          initialDelaySeconds: 30
+          timeoutSeconds: 1
+        resources:
+          requests:
+            cpu: 100m
+            memory: 50Mi
+          limits:
+            cpu: 100m
+            memory: 50Mi
+        ports:
+          - name: http
+            containerPort: 9410
+      imagePullSecrets:
+      - name: vault-exporter-pull-secret
