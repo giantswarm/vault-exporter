@@ -21,3 +21,6 @@ _testmain.go
 
 *.exe
 *.test
+*.prof
+.cover.out*
+coverage.html
