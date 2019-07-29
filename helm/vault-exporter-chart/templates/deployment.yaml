@@ -1,25 +1,29 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: vault-exporter
-  namespace: monitoring
+  name: {{ .Values.name }} 
+  namespace: {{ .Values.namespace }}
   labels:
-    app: vault-exporter
+    app: {{ .Values.name }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: vault-exporter
+      app: {{ .Values.name }}
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: vault-exporter
+        app: {{ .Values.name }}
     spec:
+      serviceAccountName: {{ .Values.name }}
+      securityContext:
+        runAsUser: {{ .Values.userID }}
+        runAsGroup: {{ .Values.groupID }}
       containers:
-      - name: vault-exporter
+      - name: {{ .Values.name }}
         env:
         - name: VAULT_ADDR
           value: '{{ .Values.Installation.V1.Auth.Vault.Address }}'
