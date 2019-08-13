@@ -22,12 +22,12 @@ project:
 #
 resource:
   default:
-    name: '{{ .Release.Name | replace "." "-" | trunc 47 }}'
+    name: "vault-exporter"
     namespace: "vault-exporter"
   psp:
-    name: '{{ .Release.Name | replace "." "-" | trunc 47 }}-psp'
+    name: "vault-exporter-psp"
   pullSecret:
-    name: '{{ .Release.Name | replace "." "-" | trunc 47 }}-pull-secret'
+    name: "vault-exporter-pull-secret"
     namespace: "vault-exporter"
 
 vault:
