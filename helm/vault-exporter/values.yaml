@@ -24,6 +24,11 @@ resource:
   default:
     name: "vault-exporter"
     namespace: "vault-exporter"
+  np:
+    name: "vault-exporter-network-policy"
+  port:
+    port: "9410"
+    protocol: "TCP"
   psp:
     name: "vault-exporter-psp"
   pullSecret:
