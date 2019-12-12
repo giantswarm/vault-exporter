@@ -1,50 +1,58 @@
-version: 2.1
-
 orbs:
-  architect: giantswarm/architect@0.2.0
+  architect: giantswarm/architect@0.4.5
 
+version: 2.1
 jobs:
   build:
     machine: true
     steps:
-      - checkout
-      - run:
-          command: |
-            wget -q $(curl -sS -H "Authorization: token $RELEASE_TOKEN" https://api.github.com/repos/giantswarm/architect/releases/latest | grep browser_download_url | head -n 1 | cut -d '"' -f 4)
-            chmod +x ./architect
-            ./architect version
-      - run:
-          command: |
-            ./architect build
-      - persist_to_workspace:
-          root: .
-          paths:
-          - ./vault-exporter
+    - checkout
 
-      - deploy:
-          command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              ./architect deploy
-            fi
+    - run: |
+        wget -q $(curl -sS -H "Authorization: token $RELEASE_TOKEN" https://api.github.com/repos/giantswarm/architect/releases/latest | grep browser_download_url | head -n 1 | cut -d '"' -f 4)
+        chmod +x ./architect
+        ./architect version
+
+    - run: |
+        date +"%Y" > /tmp/year
+        date +"%m" > /tmp/month
+        date +"%d" > /tmp/day
+    - restore_cache:
+        keys:
+        - go-cache-v1-{{ checksum "/tmp/year" }}-{{ checksum "/tmp/month" }}-{{ checksum "/tmp/day" }}
+        - go-cache-v1-{{ checksum "/tmp/year" }}-{{ checksum "/tmp/month" }}
+        - go-cache-v1-{{ checksum "/tmp/year" }}
+
+    - run: ./architect build
+
+    - store_test_results:
+        path: /tmp/results
+
+    - save_cache:
+        key: go-cache-v1-{{ checksum "/tmp/year" }}-{{ checksum "/tmp/month" }}-{{ checksum "/tmp/day" }}
+        paths:
+        - /tmp/go/cache
+
+    - persist_to_workspace:
+        root: .
+        paths:
+        - ./vault-exporter
+        - ./architect
+
+  deploy:
+    machine: true
+    steps:
+    - checkout
+    - attach_workspace:
+        at: .
+    - deploy:
+        command: |
+            ./architect deploy
 
 workflows:
-  package-and-push-chart-on-tag:
+  build:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^v.*/
-      - architect/push-to-docker:
-          name: push-vault-exporter-to-docker
-          image: "quay.io/giantswarm/vault-exporter"
-          username_envar: "QUAY_USERNAME"
-          password_envar: "QUAY_PASSWORD"
-          requires:
-            - build
-          # Needed to trigger job also on git tag.
-          filters:
-            tags:
-              only: /^v.*/
+      - build
       - architect/push-to-app-catalog:
           name: "push-vault-exporter-to-app-catalog"
           app_catalog: "giantswarm-operations-platform-catalog"
@@ -54,3 +62,53 @@ workflows:
           filters:
             tags:
               only: /^v.*/
+      - architect/push-to-docker-legacy:
+          name: push-vault-exporter-to-quay
+          image: "quay.io/giantswarm/vault-exporter"
+          username_envar: "QUAY_USERNAME"
+          password_envar: "QUAY_PASSWORD"
+          requires:
+            - build
+
+      - hold-push-vault-exporter-to-aliyun-pr:
+          type: approval
+          requires:
+            - build
+          # Needed to prevent job from being triggered on master branch.
+          filters:
+            branches:
+              ignore: master
+
+      - architect/push-to-docker-legacy:
+          name: push-vault-exporter-to-aliyun-pr
+          image: "registry-intl.cn-shanghai.aliyuncs.com/giantswarm/vault-exporter"
+          username_envar: "ALIYUN_USERNAME"
+          password_envar: "ALIYUN_PASSWORD"
+          # Push to Aliyun should execute for non-master branches only once manually approved.
+          requires:
+            - hold-push-vault-exporter-to-aliyun-pr
+          # Needed to prevent job being triggered for master branch.
+          filters:
+            branches:
+              ignore: master
+
+      # Push to Aliyun should execute without manual approval on master.
+      - architect/push-to-docker-legacy:
+          name: push-vault-exporter-to-aliyun-master
+          image: "registry-intl.cn-shanghai.aliyuncs.com/giantswarm/vault-exporter"
+          username_envar: "ALIYUN_USERNAME"
+          password_envar: "ALIYUN_PASSWORD"
+          requires:
+            - build
+          # Needed to trigger job only on merge to master.
+          filters:
+            branches:
+              only: master
+      - deploy:
+          name: deploy
+          requires:
+            - push-vault-exporter-to-aliyun-master
+            - push-vault-exporter-to-quay 
+          filters:
+            branches:
+              only: master
