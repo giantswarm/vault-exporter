@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ tpl .Values.resource.default.name  . }} 
-  namespace: {{ tpl .Values.resource.default.namespace  . }}
+  name: {{ include "resource.default.name" . }} 
+  namespace: {{ include "resource.default.namespace" . }}
   labels:
-    app: {{ tpl .Values.resource.default.name  . }}
+    app: {{ include "resource.default.name" . }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: {{ tpl .Values.resource.default.name  . }}
+      app: {{ include "resource.default.name" . }}
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: {{ tpl .Values.resource.default.name  . }}
+        app: {{ include "resource.default.name" . }}
     spec:
-      serviceAccountName: {{ tpl .Values.resource.default.name  . }}
+      serviceAccountName: {{ include "resource.default.name" . }}
       securityContext:
         runAsUser: {{ .Values.pod.user.id }}
         runAsGroup: {{ .Values.pod.group.id }}
       containers:
-      - name: {{ tpl .Values.resource.default.name  . }}
+      - name: {{ include "resource.default.name" . }}
         env:
         - name: VAULT_ADDR
           value: '{{ .Values.vault.address }}'
@@ -46,5 +46,3 @@ spec:
         ports:
           - name: http
             containerPort: 9410
-      imagePullSecrets:
-      - name: {{ tpl .Values.resource.pullSecret.name . }}

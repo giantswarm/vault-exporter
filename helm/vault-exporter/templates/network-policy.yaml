@@ -1,16 +1,16 @@
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  namespace: {{ tpl .Values.resource.default.namespace . }}
-  name: {{ tpl .Values.resource.np.name . }}
+  namespace: {{ include "resource.default.namespace" . }}
+  name: {{ include "resource.networkPolicy.name" . }}
 spec:
   podSelector:
     matchLabels:
-      app: {{ tpl .Values.resource.default.name . }}
+      app: {{ include "resource.default.name" . }}
   ingress:
   - ports:
-    - port: {{ .Values.resource.port.port }}
-      protocol: {{ .Values.resource.port.protocol }}
+    - port: {{ .Values.resource.service.port }}
+      protocol: {{ .Values.resource.service.protocol }}
   egress:
   - to:
     - ipBlock:
