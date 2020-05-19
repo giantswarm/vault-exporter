@@ -4,19 +4,21 @@ metadata:
   name: {{ include "resource.default.name" . }} 
   namespace: {{ include "resource.default.namespace" . }}
   labels:
-    app: {{ include "resource.default.name" . }}
+    {{- include "labels.common" . | nindent 4 }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: {{ include "resource.default.name" . }}
+      {{- include "labels.selector" . | nindent 6 }}
   strategy:
     type: RollingUpdate
   template:
     metadata:
+      annotations:
+        releaseRevision: {{ .Release.Revision | quote }}
       labels:
-        app: {{ include "resource.default.name" . }}
+        {{- include "labels.selector" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "resource.default.name" . }}
       securityContext:
