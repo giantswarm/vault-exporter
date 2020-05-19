@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/frankban/quicktest v1.4.1 // indirect
+	github.com/giantswarm/microerror v0.2.0
 	github.com/go-test/deep v1.0.2 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/vault/api v1.0.5-0.20200317185738-82f498082f02
