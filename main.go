@@ -2,9 +2,9 @@ package main
 
 import (
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 
+	"github.com/giantswarm/microerror"
 	vault_api "github.com/hashicorp/vault/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -77,7 +77,10 @@ func NewExporter() (*Exporter, error) {
 		tlsconfig := &vault_api.TLSConfig{
 			Insecure: true,
 		}
-		vaultConfig.ConfigureTLS(tlsconfig)
+		err := vaultConfig.ConfigureTLS(tlsconfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
 	}
 
 	if *vaultCACert != "" || *vaultClientCert != "" || *vaultClientKey != "" {
@@ -88,7 +91,10 @@ func NewExporter() (*Exporter, error) {
 			ClientKey:  *vaultClientKey,
 			Insecure:   *sslInsecure,
 		}
-		vaultConfig.ConfigureTLS(tlsconfig)
+		err := vaultConfig.ConfigureTLS(tlsconfig)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
 	}
 
 	client, err := vault_api.NewClient(vaultConfig)
@@ -152,9 +158,16 @@ func init() {
 }
 
 func main() {
+	err := mainE()
+	if err != nil {
+		panic(microerror.JSON(err))
+	}
+}
+
+func mainE() error {
 	if (len(os.Args) > 1) && (os.Args[1] == "version") {
 		version.Print("vault_exporter")
-		return
+		return nil
 	}
 
 	log.AddFlags(kingpin.CommandLine)
@@ -167,8 +180,9 @@ func main() {
 
 	exporter, err := NewExporter()
 	if err != nil {
-		log.Fatalln(err)
+		return microerror.Mask(err)
 	}
+
 	prometheus.MustRegister(exporter)
 
 	http.Handle(*metricsPath, promhttp.Handler())
@@ -188,5 +202,11 @@ func main() {
 	})
 
 	log.Infoln("Listening on", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+
+	err = http.ListenAndServe(*listenAddress, nil)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
+	return nil
 }
