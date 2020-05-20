@@ -1,114 +1,103 @@
-orbs:
-  architect: giantswarm/architect@0.4.5
-
 version: 2.1
-jobs:
-  build:
-    machine: true
-    steps:
-    - checkout
 
-    - run: |
-        wget -q $(curl -sS -H "Authorization: token $RELEASE_TOKEN" https://api.github.com/repos/giantswarm/architect/releases/tags/v1.0.0 | grep browser_download_url | head -n 1 | cut -d '"' -f 4)
-        chmod +x ./architect
-        ./architect version
-
-    - run: |
-        date +"%Y" > /tmp/year
-        date +"%m" > /tmp/month
-        date +"%d" > /tmp/day
-    - restore_cache:
-        keys:
-        - go-cache-v1-{{ checksum "/tmp/year" }}-{{ checksum "/tmp/month" }}-{{ checksum "/tmp/day" }}
-        - go-cache-v1-{{ checksum "/tmp/year" }}-{{ checksum "/tmp/month" }}
-        - go-cache-v1-{{ checksum "/tmp/year" }}
-
-    - run: ./architect build
-
-    - store_test_results:
-        path: /tmp/results
-
-    - save_cache:
-        key: go-cache-v1-{{ checksum "/tmp/year" }}-{{ checksum "/tmp/month" }}-{{ checksum "/tmp/day" }}
-        paths:
-        - /tmp/go/cache
-
-    - persist_to_workspace:
-        root: .
-        paths:
-        - ./vault-exporter
-        - ./architect
-
-  deploy:
-    machine: true
-    steps:
-    - checkout
-    - attach_workspace:
-        at: .
-    - deploy:
-        command: |
-            ./architect deploy
+orbs:
+  architect: giantswarm/architect@0.8.15
 
 workflows:
   build:
     jobs:
-      - build
-      - architect/push-to-app-catalog:
-          name: "push-vault-exporter-to-app-catalog"
-          app_catalog: "giantswarm-operations-platform-catalog"
-          app_catalog_test: "giantswarm-operations-platform-test-catalog"
-          chart: "vault-exporter"
-          # Trigger job on git tag.
+      - architect/go-build:
+          name: go-build-vault-exporter
+          binary: vault-exporter
           filters:
+            # Trigger the job also on git tag.
             tags:
               only: /^v.*/
-      - architect/push-to-docker-legacy:
+
+      - architect/push-to-docker:
+          context: "architect"
           name: push-vault-exporter-to-quay
           image: "quay.io/giantswarm/vault-exporter"
           username_envar: "QUAY_USERNAME"
           password_envar: "QUAY_PASSWORD"
           requires:
-            - build
-
-      - hold-push-vault-exporter-to-aliyun-pr:
-          type: approval
-          requires:
-            - build
-          # Needed to prevent job from being triggered on master branch.
+            - go-build-vault-exporter
           filters:
-            branches:
-              ignore: master
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
 
-      - architect/push-to-docker-legacy:
-          name: push-vault-exporter-to-aliyun-pr
-          image: "registry-intl.cn-shanghai.aliyuncs.com/giantswarm/vault-exporter"
-          username_envar: "ALIYUN_USERNAME"
-          password_envar: "ALIYUN_PASSWORD"
-          # Push to Aliyun should execute for non-master branches only once manually approved.
-          requires:
-            - hold-push-vault-exporter-to-aliyun-pr
-          # Needed to prevent job being triggered for master branch.
-          filters:
-            branches:
-              ignore: master
-
-      # Push to Aliyun should execute without manual approval on master.
-      - architect/push-to-docker-legacy:
-          name: push-vault-exporter-to-aliyun-master
+      - architect/push-to-docker:
+          context: "architect"
+          name: push-vault-exporter-to-aliyun
           image: "registry-intl.cn-shanghai.aliyuncs.com/giantswarm/vault-exporter"
           username_envar: "ALIYUN_USERNAME"
           password_envar: "ALIYUN_PASSWORD"
           requires:
-            - build
-          # Needed to trigger job only on merge to master.
+            - go-build-vault-exporter
           filters:
-            branches:
-              only: master
-      - deploy:
-          name: deploy
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-catalog:
+          context: "architect"
+          name: push-vault-exporter-to-control-plane-app-catalog
+          app_catalog: "control-plane-catalog"
+          app_catalog_test: "control-plane-test-catalog"
+          chart: "vault-exporter"
+          # Make sure docker image is successfully built.
           requires:
-            - push-vault-exporter-to-aliyun-master
-            - push-vault-exporter-to-quay 
+            - push-vault-exporter-to-quay
           filters:
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: push-vault-exporter-to-aws-app-collection
+          app_name: "vault-exporter"
+          app_collection_repo: "azure-app-collection"
+          unique: "true"
+          requires:
+            - push-vault-exporter-to-control-plane-app-catalog
+          filters:
+            # Do not trigger the job on commit.
             branches:
-              only: master
+              ignore: /.*/
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: push-vault-exporter-to-azure-app-collection
+          app_name: "vault-exporter"
+          app_collection_repo: "aws-app-collection"
+          unique: "true"
+          requires:
+            - push-vault-exporter-to-control-plane-app-catalog
+          filters:
+            # Do not trigger the job on commit.
+            branches:
+              ignore: /.*/
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
+
+      - architect/push-to-app-collection:
+          context: "architect"
+          name: push-vault-exporter-to-kvm-app-collection
+          app_name: "vault-exporter"
+          app_collection_repo: "kvm-app-collection"
+          unique: "true"
+          requires:
+            - push-vault-exporter-to-control-plane-app-catalog
+          filters:
+            # Do not trigger the job on commit.
+            branches:
+              ignore: /.*/
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
