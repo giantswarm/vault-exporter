@@ -28,7 +28,7 @@ spec:
       - name: {{ include "resource.default.name" . }}
         env:
         - name: VAULT_ADDR
-          value: '{{ .Values.vault.address }}'
+          value: {{ .Values.vault.address | quote }}
         image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         args:
         - "--vault-tls-cacert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
