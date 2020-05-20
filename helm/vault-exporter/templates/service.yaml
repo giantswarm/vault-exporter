@@ -10,7 +10,7 @@ metadata:
 spec:
   ports:
   - name: {{ include "resource.default.name" . }}
-    port: {{ .Values.resource.service.port . }}
-    targetPort: {{ .Values.resource.service.port . }}
+    port: {{ .Values.resource.service.port }}
+    targetPort: {{ .Values.resource.service.port }}
   selector:
     app: {{ include "resource.default.name" . }} 
