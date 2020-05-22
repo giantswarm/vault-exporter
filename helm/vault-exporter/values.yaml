@@ -10,6 +10,9 @@ pod:
     id: 1000
   group:
     id: 1000
+project:
+  branch: "[[ .Branch ]]"
+  commit: "[[ .SHA ]]"
 resource:
   service:
     port: "9410"
