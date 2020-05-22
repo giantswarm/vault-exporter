@@ -1,7 +1,10 @@
 image:
-  registry: "quay.io"
   repository: "giantswarm/vault-exporter"
   tag: "[[ .Version ]]"
+Installation:
+  V1:
+    Registry:
+      Domain: quay.io
 pod:
   user:
     id: 1000
