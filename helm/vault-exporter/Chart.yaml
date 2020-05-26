@@ -1,6 +1,6 @@
 apiVersion: "v1"
 name: "vault-exporter"
 description: "Helm chart for vault-exporter."
-home: "https://github.com/giantswarm/REPOSITORY"
+home: "https://github.com/giantswarm/vault-exporter"
 version: "[[ .Version ]]"
 appVersion: "[[ .AppVersion ]]"
