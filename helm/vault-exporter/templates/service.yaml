@@ -4,7 +4,7 @@ metadata:
   name: {{ include "resource.default.name" . }}
   namespace: {{ include "resource.default.name" . }}
   labels:
-    app: {{ include "resource.default.name" . }}
+    {{- include "labels.common" . | nindent 4 }}
   annotations:
     prometheus.io/scrape: "true"
 spec:
@@ -13,4 +13,4 @@ spec:
     port: 9410
     targetPort: 9410
   selector:
-    app: {{ include "resource.default.name" . }} 
+    {{- include "labels.selector" . | nindent 4 }}
