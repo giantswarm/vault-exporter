@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "resource.default.name" . }} 
-  namespace: {{ include "resource.default.name" . space }}
+  namespace: {{ include "resource.default.name" . }}
   labels:
     app: {{ include "resource.default.name" . }}
 spec:

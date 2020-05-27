@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "resource.default.name" . }}
-  namespace: {{ include "resource.default.name" . space }}
+  namespace: {{ include "resource.default.name" . }}
   labels:
     app: {{ include "resource.default.name" . }}
   annotations:
