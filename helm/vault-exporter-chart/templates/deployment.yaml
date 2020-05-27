@@ -46,5 +46,3 @@ spec:
         ports:
           - name: http
             containerPort: 9410
-      imagePullSecrets:
-      - name: vault-exporter-pull-secret
