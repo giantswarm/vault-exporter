@@ -1,5 +1,18 @@
 name: vault-exporter
 namespace: monitoring
 
-userID: 1000
-groupID: 1000
+image:
+  name: "giantswarm/template-operator"
+  tag: "[[ .Version ]]"
+Installation:
+  V1:
+    Registry:
+      Domain: quay.io
+pod:
+  user:
+    id: 1000
+  group:
+    id: 1000
+project:
+  branch: "[[ .Branch ]]"
+  commit: "[[ .SHA ]]"

@@ -1,2 +1,6 @@
-name: vault-exporter-chart
-version: 1.0.0-[[ .SHA ]]
+apiVersion: "v1"
+appVersion: "[[ .AppVersion ]]"
+description: "Chart holding vault-exporter."
+home: "https://github.com/giantswarm/vault-exporter"
+name: "vault-exporter"
+version: "[[ .Version ]]"
