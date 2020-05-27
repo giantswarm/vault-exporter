@@ -1,5 +1,5 @@
 image:
-  name: "giantswarm/template-operator"
+  name: "giantswarm/vault-exporter"
   tag: "[[ .Version ]]"
 Installation:
   V1:
