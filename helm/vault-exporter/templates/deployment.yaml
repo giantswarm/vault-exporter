@@ -1,29 +1,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.name }} 
-  namespace: {{ .Values.namespace }}
+  name: {{ include "resource.default.name" . }} 
+  namespace: {{ include "resource.default.name" . space }}
   labels:
-    app: {{ .Values.name }}
+    app: {{ include "resource.default.name" . }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: {{ .Values.name }}
+      app: {{ include "resource.default.name" . }}
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: {{ .Values.name }}
+        app: {{ include "resource.default.name" . }}
     spec:
-      serviceAccountName: {{ .Values.name }}
+      serviceAccountName: {{ include "resource.default.name" . }}
       securityContext:
         runAsUser: {{ .Values.pod.user.id }}
         runAsGroup: {{ .Values.pod.group.id }}
       containers:
-      - name: {{ .Values.name }}
+      - name: {{ include "resource.default.name" . }}
         env:
         - name: VAULT_ADDR
           value: '{{ .Values.Installation.V1.Auth.Vault.Address }}'

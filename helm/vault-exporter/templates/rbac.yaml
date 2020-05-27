@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Values.name }}-psp
+  name: {{ include "resource.psp.name" . }}
 rules:
   - apiGroups:
       - extensions
@@ -10,17 +10,17 @@ rules:
     verbs:
       - use
     resourceNames:
-      - {{ .Values.name }}-psp
+      - {{ include "resource.psp.name" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.name }}-psp
+  name: {{ include "resource.psp.name" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.name }}
-    namespace: {{ .Values.namespace }}
+    name: {{ include "resource.default.name" . }}
+    namespace: {{ include "resource.default.name" . space }}
 roleRef:
   kind: ClusterRole
-  name: {{ .Values.name }}-psp
+  name: {{ include "resource.psp.name" . }}
   apiGroup: rbac.authorization.k8s.io
