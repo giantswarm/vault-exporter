@@ -20,8 +20,8 @@ spec:
     spec:
       serviceAccountName: {{ .Values.name }}
       securityContext:
-        runAsUser: {{ .Values.userID }}
-        runAsGroup: {{ .Values.groupID }}
+        runAsUser: {{ .Values.pod.user.id }}
+        runAsGroup: {{ .Values.pod.group.id }}
       containers:
       - name: {{ .Values.name }}
         env:
