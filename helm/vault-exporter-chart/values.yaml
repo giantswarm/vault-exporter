@@ -1,0 +1,5 @@
+name: vault-exporter
+namespace: monitoring
+
+userID: 1000
+groupID: 1000
