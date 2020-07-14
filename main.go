@@ -360,24 +360,7 @@ func rootReqHandler() http.Handler {
 	return h
 }
 
-func main() {
-	err := mainE()
-	if err != nil {
-		panic(microerror.JSON(err))
-	}
-}
-
-func mainE() error {
-	if (len(os.Args) > 1) && (os.Args[1] == "version") {
-		version.Print("vault_exporter")
-		return nil
-	}
-
-	log.AddFlags(kingpin.CommandLine)
-	kingpin.Version(version.Print("vault_exporter"))
-	kingpin.HelpFlag.Short('h')
-	kingpin.Parse()
-
+func configureTLS() *tlsCliConfig {
 	// kingpin's .Bool with .Default("true") doesn't work as expected, so we parse the value ourselves
 	tlsEnableParsed, err := strconv.ParseBool(*tlsEnable)
 	if err != nil {
@@ -400,6 +383,29 @@ func mainE() error {
 		PreferServerCipherSuites: tlsPreferServerCipherSuitesParsed,
 	}
 
+	return tlsConfig
+}
+
+func main() {
+	err := mainE()
+	if err != nil {
+		panic(microerror.JSON(err))
+	}
+}
+
+func mainE() error {
+	if (len(os.Args) > 1) && (os.Args[1] == "version") {
+		version.Print("vault_exporter")
+		return nil
+	}
+
+	log.AddFlags(kingpin.CommandLine)
+	kingpin.Version(version.Print("vault_exporter"))
+	kingpin.HelpFlag.Short('h')
+	kingpin.Parse()
+
+	tlsConfig := configureTLS()
+
 	log.Infoln("Starting vault_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 	log.Infoln(fmt.Sprintf("TLS config %#v", tlsConfig))
@@ -419,19 +425,19 @@ func mainE() error {
 		return microerror.Mask(err)
 	}
 
-	if !tlsEnableParsed && authenticator != nil {
+	if !tlsConfig.Enable && authenticator != nil {
 		log.Errorln("authentication is enabled, but TLS is not. Don't do this in production, mate.")
 	}
 
 	if authenticator != nil {
-		authHttpHandler := func(inner http.Handler) http.Handler {
+		authHTTPHandler := func(inner http.Handler) http.Handler {
 			h := authenticator.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
 				inner.ServeHTTP(w, &r.Request)
 			})
 			return h
 		}
-		metricsHandler = authHttpHandler(metricsHandler)
-		rootHandler = authHttpHandler(rootHandler)
+		metricsHandler = authHTTPHandler(metricsHandler)
+		rootHandler = authHTTPHandler(rootHandler)
 	}
 
 	http.Handle(*metricsPath, metricsHandler)
