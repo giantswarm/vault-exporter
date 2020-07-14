@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/giantswarm/microerror"
 	vault_api "github.com/hashicorp/vault/api"
@@ -15,11 +19,13 @@ import (
 
 var (
 	listenAddress = kingpin.Flag("web.listen-address",
-		"Address to listen on for web interface and telemetry.").
-		Default(":9410").String()
+		"Address to listen on for web interface and telemetry. Env var: WEB_LISTEN_ADDRESS").
+		Default(":9410").
+		Envar("WEB_LISTEN_ADDRESS").String()
 	metricsPath = kingpin.Flag("web.telemetry-path",
-		"Path under which to expose metrics.").
-		Default("/metrics").String()
+		"Path under which to expose metrics. Env var: WEB_TELEMETRY_PATH").
+		Default("/metrics").
+		Envar("WEB_TELEMETRY_PATH").String()
 	vaultCACert = kingpin.Flag("vault-tls-cacert",
 		"The path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate.").String()
 	vaultClientCert = kingpin.Flag("vault-tls-client-cert",
@@ -27,8 +33,40 @@ var (
 	vaultClientKey = kingpin.Flag("vault-tls-client-key",
 		"The path to the private key for Vault communication.").String()
 	sslInsecure = kingpin.Flag("insecure-ssl",
-		"Set SSL to ignore certificate validation.").
+		"Set SSL to ignore certificate validation. Env var: SSL_INSECURE").
+		Envar("SSL_INSECURE").
 		Default("false").Bool()
+	tlsEnable = kingpin.Flag("tls.enable",
+		"Enable TLS (true/false). Env var: TLS_ENABLE").
+		Envar("TLS_ENABLE").
+		Default("false").String()
+	tlsPreferServerCipherSuites = kingpin.Flag("tls.prefer-server-cipher-suites",
+		"Server selects the client's most preferred cipher suite (true/false). Env var: TLS_PREFER_SERVER_CIPHER_SUITES").
+		Envar("TLS_PREFER_SERVER_CIPHER_SUITES").
+		Default("true").String()
+	tlsKeyFile = kingpin.Flag("tls.key-file",
+		"Path to the private key file. Env var: TLS_KEY_FILE").
+		Envar("TLS_KEY_FILE").ExistingFile()
+	tlsCertFile = kingpin.Flag("tls.cert-file",
+		"Path to the cert file. Can contain multiple certs. Env var: TLS_CERT_FILE").
+		Envar("TLS_CERT_FILE").ExistingFile()
+	tlsMinVer = parseTLSVersion(kingpin.Flag("tls.min-ver",
+		"TLS minimum version. Env var: TLS_MIN_VER").
+		Default("TLS12").
+		Envar("TLS_MIN_VER"))
+	tlsMaxVer = parseTLSVersion(kingpin.Flag("tls.max-ver",
+		"TLS maximum  version. Env var: TLS_MAX_VER").
+		Default("TLS13").
+		Envar("TLS_MAX_VER"))
+	tlsCipherSuites = parseTLSCipher(kingpin.Flag("tls.cipher-suite",
+		"Allowed cipher suite (See https://golang.org/pkg/crypto/tls/#pkg-constants). "+
+			"Specify multiple times for adding more suites. Default: built-in cipher list. "+
+			"Env var: TLS_CIPHER_SUITES - separate multiple values with a new line").
+		Envar("TLS_CIPHER_SUITES"))
+	tlsCurves = parseTLSCurve(kingpin.Flag("tls.curve",
+		"Allowed curves for an elliptic curve (See  https://golang.org/pkg/crypto/tls/#CurveID). "+
+			"Default: built-in curves list. Env var: TLS_CURVES - separate multiple values with a new line").
+		Envar("TLS_CURVES"))
 )
 
 const (
@@ -157,6 +195,124 @@ func init() {
 	prometheus.MustRegister(version.NewCollector("vault_exporter"))
 }
 
+type tlsVersion uint16
+
+var tlsVersionsMap = map[string]tlsVersion{
+	"TLS13": (tlsVersion)(tls.VersionTLS13),
+	"TLS12": (tlsVersion)(tls.VersionTLS12),
+	"TLS11": (tlsVersion)(tls.VersionTLS11),
+	"TLS10": (tlsVersion)(tls.VersionTLS10),
+}
+
+func (tv *tlsVersion) Set(tlsVerName string) error {
+	if v, ok := tlsVersionsMap[tlsVerName]; ok {
+		*tv = v
+		return nil
+	}
+	return errors.New("unknown TLS version: " + tlsVerName)
+}
+
+func (tv *tlsVersion) String() string {
+	return ""
+}
+
+func parseTLSVersion(s kingpin.Settings) (target *tlsVersion) {
+	target = new(tlsVersion)
+	s.SetValue((*tlsVersion)(target))
+	return
+}
+
+type cipherList []uint16
+
+func (c *cipherList) Set(cipherName string) error {
+	for _, cs := range tls.CipherSuites() {
+		if cs.Name == cipherName {
+			*c = append(*c, cs.ID)
+			return nil
+		}
+	}
+	return errors.New("unknown cipher: " + cipherName)
+}
+
+func (c *cipherList) String() string {
+	return ""
+}
+
+func (c *cipherList) IsCumulative() bool {
+	return true
+}
+
+func parseTLSCipher(s kingpin.Settings) (target *[]uint16) {
+	target = new([]uint16)
+	s.SetValue((*cipherList)(target))
+	return
+}
+
+var curves = map[string]tls.CurveID{
+	"CurveP256": tls.CurveP256,
+	"CurveP384": tls.CurveP384,
+	"CurveP521": tls.CurveP521,
+	"X25519":    tls.X25519,
+}
+
+type curveList []tls.CurveID
+
+func (cl *curveList) Set(curveName string) error {
+	if curveid, ok := curves[curveName]; ok {
+		*cl = append(*cl, curveid)
+		return nil
+	}
+	return errors.New("unknown curve: " + curveName)
+}
+
+func (cl *curveList) String() string {
+	return ""
+}
+
+func (cl *curveList) IsCumulative() bool {
+	return true
+}
+
+func parseTLSCurve(s kingpin.Settings) (target *[]tls.CurveID) {
+	target = new([]tls.CurveID)
+	s.SetValue((*curveList)(target))
+	return
+}
+
+type tlsCliConfig struct {
+	CertFile                 string
+	KeyFile                  string
+	CipherSuites             cipherList
+	CurvePreferences         curveList
+	MinVersion               tlsVersion
+	MaxVersion               tlsVersion
+	PreferServerCipherSuites bool
+	Enable                   bool
+}
+
+func listen(listenAddress string, tlsCliConfig *tlsCliConfig) error {
+	if !tlsCliConfig.Enable {
+		return http.ListenAndServe(listenAddress, nil)
+	}
+
+	cert, err := tls.LoadX509KeyPair(tlsCliConfig.CertFile, tlsCliConfig.KeyFile)
+	if err != nil {
+		return errors.New("failed to load X509KeyPair")
+	}
+
+	var tlsConfig = &tls.Config{
+		MinVersion:               uint16(tlsCliConfig.MinVersion),
+		MaxVersion:               uint16(tlsCliConfig.MaxVersion),
+		PreferServerCipherSuites: tlsCliConfig.PreferServerCipherSuites,
+		Certificates:             []tls.Certificate{cert},
+		CipherSuites:             tlsCliConfig.CipherSuites,
+		CurvePreferences:         tlsCliConfig.CurvePreferences,
+	}
+
+	server := &http.Server{Addr: listenAddress, Handler: nil, TLSConfig: tlsConfig}
+	return server.ListenAndServeTLS("", "")
+}
+
 func main() {
 	err := mainE()
 	if err != nil {
@@ -175,8 +331,31 @@ func mainE() error {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
+	// kingpin's .Bool with .Default("true") doesn't work as expected, so we parse the value ourselves
+	tlsEnableParsed, err := strconv.ParseBool(*tlsEnable)
+	if err != nil {
+		log.Fatalln("parsing tlsEnable value failed: " + *tlsEnable)
+	}
+
+	tlsPreferServerCipherSuitesParsed, err := strconv.ParseBool(*tlsPreferServerCipherSuites)
+	if err != nil {
+		log.Fatalln("parsing tlsPreferServerCipherSuites value failed: " + *tlsPreferServerCipherSuites)
+	}
+
+	var tlsConfig = &tlsCliConfig{
+		CertFile:                 *tlsCertFile,
+		KeyFile:                  *tlsKeyFile,
+		MinVersion:               *tlsMinVer,
+		MaxVersion:               *tlsMaxVer,
+		CipherSuites:             *tlsCipherSuites,
+		CurvePreferences:         *tlsCurves,
+		Enable:                   tlsEnableParsed,
+		PreferServerCipherSuites: tlsPreferServerCipherSuitesParsed,
+	}
+
 	log.Infoln("Starting vault_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
+	log.Infoln(fmt.Sprintf("TLS config %#v", tlsConfig))
 
 	exporter, err := NewExporter()
 	if err != nil {
@@ -203,7 +382,7 @@ func mainE() error {
 
 	log.Infoln("Listening on", *listenAddress)
 
-	err = http.ListenAndServe(*listenAddress, nil)
+	err = listen(*listenAddress, tlsConfig)
 	if err != nil {
 		return microerror.Mask(err)
 	}

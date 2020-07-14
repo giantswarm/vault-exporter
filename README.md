@@ -49,20 +49,67 @@ usage: vault_exporter [<flags>]
 Flags:
   -h, --help              Show context-sensitive help (also try --help-long and --help-man).
       --web.listen-address=":9410"  
-                          Address to listen on for web interface and telemetry.
+                                 Address to listen on for web interface and telemetry. Env var: WEB_LISTEN_ADDRESS
       --web.telemetry-path="/metrics"  
-                          Path under which to expose metrics.
+                                 Path under which to expose metrics. Env var: WEB_TELEMETRY_PATH
       --vault-tls-cacert=VAULT-TLS-CACERT  
-                          The path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate.
+                                 The path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate.
       --vault-tls-client-cert=VAULT-TLS-CLIENT-CERT  
-                          The path to the certificate for Vault communication.
+                                 The path to the certificate for Vault communication.
       --vault-tls-client-key=VAULT-TLS-CLIENT-KEY  
-                          The path to the private key for Vault communication.
-      --insecure-ssl      Set SSL to ignore certificate validation.
+                                 The path to the private key for Vault communication.
+      --insecure-ssl             Set SSL to ignore certificate validation.
+      --tls.enable="false"       Enable TLS (true/false). Env var: TLS_ENABLE
+      --tls.prefer-server-cipher-suites="true"
+                                 Server selects the client's most preferred cipher suite (true/false). Env var:
+                                 TLS_PREFER_SERVER_CIPHER_SUITES
+      --tls.key-file=TLS.KEY-FILE
+                                 Path to the private key file. Env var: TLS_KEY_FILE
+      --tls.cert-file=TLS.CERT-FILE
+                                 Path to the cert file. Can contain multiple certs. Env var: TLS_CERT_FILE
+      --tls.min-ver=TLS12        TLS minimum version. Env var: TLS_MIN_VER
+      --tls.max-ver=TLS13        TLS maximum version. Env var: TLS_MAX_VER
+      --tls.cipher-suite=TLS.CIPHER-SUITE ...
+                                 Allowed cipher suite (See https://golang.org/pkg/crypto/tls/#pkg-constants). Specify multiple times for
+                                 adding more suites. Default: built-in cipher list. Env var: TLS_CIPHER_SUITES - separate multiple values
+                                 with a new line
+      --tls.curve=TLS.CURVE ...  Allowed curves for an elliptic curve (See https://golang.org/pkg/crypto/tls/#CurveID). Default: built-in
+                                 curves list. Env var: TLS_CURVES - separate multiple values with a new line
       --log.level="info"  Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]
       --log.format="logger:stderr"  
                           Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"
       --version           Show application version.
+```
+
+## TLS Examples
+
+```bash
+./vault_exporter --tls.enable --tls.key-file=localhost.key --tls.cert-file=localhost.crt
+```
+
+Define list of ciphers
+```bash
+./vault_exporter --tls.enable=true --tls.key-file=localhost.key --tls.cert-file=localhost.crt \
+                 --tls.cipher-suite="TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384" \
+                 --tls.cipher-suite="TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+```
+
+Define list of ciphers via environment variables
+```bash
+# Note the newline
+TLS_CIPHER_SUITES="TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+"
+./vault_exporter --tls.enable=true --tls.key-file=localhost.key --tls.cert-file=localhost.crt
+```
+
+## Generate TLS cert for local development
+
+```bash
+openssl req -new -nodes -subj "/C=DE/CN=localhost" \
+                  -addext "subjectAltName = DNS:localhost" \
+                  -newkey rsa:2048 -keyout localhost.key -out localhost.csr
+openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
 ```
 
 ## Environment variables
