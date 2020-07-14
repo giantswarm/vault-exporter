@@ -4,10 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"net/http"
-	"os"
-	"strconv"
-
+	auth "github.com/abbot/go-http-auth"
 	"github.com/giantswarm/microerror"
 	vault_api "github.com/hashicorp/vault/api"
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,6 +12,10 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -26,6 +27,11 @@ var (
 		"Path under which to expose metrics. Env var: WEB_TELEMETRY_PATH").
 		Default("/metrics").
 		Envar("WEB_TELEMETRY_PATH").String()
+	basicAuthCreds = kingpin.Flag("web.basic-auth",
+		"Basic auth credentials in htpasswd format, e.g. 'test:$2y$05$FIYPVfTq2ZSRyFKm1z'. "+
+			"Create with `htpasswd -B -n my_user`. Env var WEB_BASIC_AUTH ").
+		Envar("WEB_BASIC_AUTH").
+		String()
 	vaultCACert = kingpin.Flag("vault-tls-cacert",
 		"The path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate.").String()
 	vaultClientCert = kingpin.Flag("vault-tls-client-cert",
@@ -313,6 +319,47 @@ func listen(listenAddress string, tlsCliConfig *tlsCliConfig) error {
 	return server.ListenAndServeTLS("", "")
 }
 
+func basicAuthProvider() (*auth.BasicAuth, error) {
+	if basicAuthCreds == nil {
+		return nil, nil
+	}
+
+	credsSplit := strings.Split(*basicAuthCreds, ":")
+	if len(credsSplit) != 2 {
+		return nil, errors.New("parsing basic auth string failed")
+	}
+	usernameConfig := credsSplit[0]
+	passwordConfig := credsSplit[1]
+
+	secretProvider := func(user string, realm string) string {
+		if user == usernameConfig {
+			return passwordConfig
+		}
+		return ""
+	}
+
+	authenticator := auth.NewBasicAuthenticator("vault_exporter", secretProvider)
+	return authenticator, nil
+}
+
+func rootReqHandler() http.Handler {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write([]byte(`<html>
+             <head><title>Vault Exporter</title></head>
+             <body>
+             <h1>Vault Exporter</h1>
+             <p><a href='` + *metricsPath + `'>Metrics</a></p>
+             <h2>Build</h2>
+             <pre>` + version.Info() + ` ` + version.BuildContext() + `</pre>
+             </body>
+             </html>`))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	return h
+}
+
 func main() {
 	err := mainE()
 	if err != nil {
@@ -364,21 +411,31 @@ func mainE() error {
 
 	prometheus.MustRegister(exporter)
 
-	http.Handle(*metricsPath, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`<html>
-             <head><title>Vault Exporter</title></head>
-             <body>
-             <h1>Vault Exporter</h1>
-             <p><a href='` + *metricsPath + `'>Metrics</a></p>
-             <h2>Build</h2>
-             <pre>` + version.Info() + ` ` + version.BuildContext() + `</pre>
-             </body>
-             </html>`))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+	rootHandler := rootReqHandler()
+	metricsHandler := promhttp.Handler()
+
+	authenticator, err := basicAuthProvider()
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
+	if !tlsEnableParsed && authenticator != nil {
+		log.Errorln("authentication is enabled, but TLS is not. Don't do this in production, mate.")
+	}
+
+	if authenticator != nil {
+		authHttpHandler := func(inner http.Handler) http.Handler {
+			h := authenticator.Wrap(func(w http.ResponseWriter, r *auth.AuthenticatedRequest) {
+				inner.ServeHTTP(w, &r.Request)
+			})
+			return h
 		}
-	})
+		metricsHandler = authHttpHandler(metricsHandler)
+		rootHandler = authHttpHandler(rootHandler)
+	}
+
+	http.Handle(*metricsPath, metricsHandler)
+	http.Handle("/", rootHandler)
 
 	log.Infoln("Listening on", *listenAddress)
 

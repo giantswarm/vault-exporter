@@ -112,6 +112,23 @@ openssl req -new -nodes -subj "/C=DE/CN=localhost" \
 openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
 ```
 
+## Basic Auth
+
+vault_exporter expects the basic auth credentials in the _htpasswd_ format. They can be created with the `htpasswd` 
+command line utility (user: test, pass: test):
+```bash
+$ htpasswd -B -n test
+New password:
+Re-type new password:
+test:$2y$05$tlFqYpCCutsYxANpwSEVEOLAP1KXm.Ndp1Vt5cPqD2mN9xPyfxkq2
+```
+
+Then just passt the resulting string with the bcrypt encrypted password via command line:
+
+```bash
+./vault_exporter --web.basic-auth='test:$2y$05$tlFqYpCCutsYxANpwSEVEOLAP1KXm.Ndp1Vt5cPqD2mN9xPyfxkq2'
+``` 
+
 ## Environment variables
 
 Note that environment variables can be overwritten by flags.
