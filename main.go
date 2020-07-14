@@ -320,7 +320,7 @@ func listen(listenAddress string, tlsCliConfig *tlsCliConfig) error {
 }
 
 func basicAuthProvider() (*auth.BasicAuth, error) {
-	if basicAuthCreds == nil {
+	if *basicAuthCreds == "" {
 		return nil, nil
 	}
 
