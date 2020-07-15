@@ -52,6 +52,9 @@ Flags:
                                  Address to listen on for web interface and telemetry. Env var: WEB_LISTEN_ADDRESS
       --web.telemetry-path="/metrics"  
                                  Path under which to expose metrics. Env var: WEB_TELEMETRY_PATH
+      --web.basic-auth=WEB.BASIC-AUTH
+                                 Basic auth credentials in htpasswd format, e.g. 'test:$2y$05$FIYPVfTq2ZSRyFKm1z'. Create with `htpasswd -B
+                                 -n my_user`. Env var WEB_BASIC_AUTH
       --vault-tls-cacert=VAULT-TLS-CACERT  
                                  The path to a PEM-encoded CA cert file to use to verify the Vault server SSL certificate.
       --vault-tls-client-cert=VAULT-TLS-CLIENT-CERT  
