@@ -153,4 +153,6 @@ Note that environment variables can be overwritten by flags.
 * `VAULT_SKIP_VERIFY` – SkipVerify enables or disables SSL verification (defaults to `false`)
 * `VAULT_TLS_SERVER_NAME` – TLSServerName, if set, is used to set the SNI host when connecting via TLS (defaults to empty)
 * `VAULT_MAX_RETRIES` – MaxRetries controls the maximum number of times to retry when a 5xx error occurs (defaults to `0`)
-* `VAULT_TOKEN` – Token is the access token used by client
+* `VAULT_ROLE_ID` – Role ID for authenticating via AppRole
+* `VAULT_SECRET_ID` – Secret ID for authenticating via AppRole
+* `VAULT_APPROLE_MOUNTPOINT` – Mountpoint of the AppRole backend

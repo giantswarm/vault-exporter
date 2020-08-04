@@ -120,6 +120,29 @@ type Exporter struct {
 	client *vault_api.Client
 }
 
+func renewToken(client *vault_api.Client) {
+	roleId, roleIdExists := os.LookupEnv("VAULT_ROLE_ID")
+	secretId, secretIdExists := os.LookupEnv("VAULT_SECRET_ID")
+	approleMountPoint, approleMountPointExists := os.LookupEnv("VAULT_APPROLE_MOUNTPOINT")
+
+	if !approleMountPointExists {
+		approleMountPoint = "approle"
+	}
+
+	if roleIdExists && secretIdExists {
+		resp, err := client.Logical().Write(fmt.Sprintf("auth/%s/login", approleMountPoint), map[string]interface{}{
+			"role_id":   roleId,
+			"secret_id": secretId,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Info("approle auth: renewing token. New token is valid for ", resp.Auth.LeaseDuration, "s")
+		client.SetToken(resp.Auth.ClientToken)
+	}
+
+}
+
 // NewExporter returns an initialized Exporter.
 func NewExporter() (*Exporter, error) {
 	vaultConfig := vault_api.DefaultConfig()
@@ -152,6 +175,8 @@ func NewExporter() (*Exporter, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	renewToken(client)
 
 	return &Exporter{
 		client: client,
@@ -380,50 +405,64 @@ func metricsAggregatorWrapper(e *Exporter, inner http.Handler) (http.Handler, er
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inner.ServeHTTP(w, r)
 
-		req := e.client.NewRequest("GET", "/v1/sys/metrics")
-		req.Params.Add("format", "prometheus")
-		res, err := e.client.RawRequest(req)
-		if err != nil {
-			log.Errorf("Failed to query metrics from Vault: %v", err)
-		}
+		for try := 1; try < 2; try++ {
+			req := e.client.NewRequest("GET", "/v1/sys/metrics")
+			req.Params.Add("format", "prometheus")
+			res, err := e.client.RawRequest(req)
 
-		// Only primary node delivers sys metrics
-		if res.StatusCode != http.StatusOK {
-			return
-		}
+			if res != nil && res.StatusCode == http.StatusForbidden {
+				renewToken(e.client)
+				continue
+			}
 
-		mfs := make(map[string]*prometheusClient.MetricFamily)
-		if res != nil {
-			mfs, err = parseMetricFamilies(res.Body)
+			// Only primary node delivers sys metrics
+			if res != nil && res.StatusCode == http.StatusBadRequest {
+				continue
+			}
+
 			if err != nil {
-				log.Errorf("Failed parsing metrics %v", err.Error())
+				log.Errorf("Failed to query metrics from Vault: %v", err)
+				continue
+			}
+
+			if res.StatusCode != http.StatusOK {
 				return
 			}
-		}
 
-		allFamilies := make(map[string]*prometheusClient.MetricFamily)
-
-		for mfName, mf := range mfs {
-			if !strings.HasPrefix(*(mf.Name), "vault_") {
-				formatted := fmt.Sprintf("vault_%s", *mf.Name)
-				mf.Name = &formatted
-			}
-
-			if existingMf, ok := allFamilies[mfName]; ok {
-				for _, m := range mf.Metric {
-					existingMf.Metric = append(existingMf.Metric, m)
+			mfs := make(map[string]*prometheusClient.MetricFamily)
+			if res != nil {
+				mfs, err = parseMetricFamilies(res.Body)
+				if err != nil {
+					log.Errorf("Failed parsing metrics %v", err.Error())
+					return
 				}
-			} else {
-				allFamilies[*mf.Name] = mf
 			}
-		}
 
-		encoder := expfmt.NewEncoder(w, expfmt.FmtText)
-		for _, f := range allFamilies {
-			err = encoder.Encode(f)
-			if err != nil {
-				log.Errorf("Failed parsing metrics %v", err.Error())
+			allFamilies := make(map[string]*prometheusClient.MetricFamily)
+
+			for mfName, mf := range mfs {
+				if !strings.HasPrefix(*(mf.Name), "vault_") {
+					formatted := fmt.Sprintf("vault_%s", *mf.Name)
+					mf.Name = &formatted
+				}
+
+				if existingMf, ok := allFamilies[mfName]; ok {
+					for _, m := range mf.Metric {
+						existingMf.Metric = append(existingMf.Metric, m)
+					}
+				} else {
+					allFamilies[*mf.Name] = mf
+				}
 			}
+
+			encoder := expfmt.NewEncoder(w, expfmt.FmtText)
+			for _, f := range allFamilies {
+				err = encoder.Encode(f)
+				if err != nil {
+					log.Errorf("Failed parsing metrics %v", err.Error())
+				}
+			}
+			return
 		}
 	}), nil
 }
