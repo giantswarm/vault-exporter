@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/NYTimes/gziphandler"
 	auth "github.com/abbot/go-http-auth"
 	"github.com/giantswarm/microerror"
 	vault_api "github.com/hashicorp/vault/api"
@@ -485,8 +486,18 @@ func mainE() error {
 
 	prometheus.MustRegister(exporter)
 
+	customPromHandler := func() http.Handler {
+		// disable compression, because we're handling this ourselves
+		handlerOpts := promhttp.HandlerOpts{
+			DisableCompression: true,
+		}
+		return promhttp.InstrumentMetricHandler(
+			prometheus.DefaultRegisterer, promhttp.HandlerFor(prometheus.DefaultGatherer, handlerOpts),
+		)
+	}
+
 	rootHandler := rootReqHandler()
-	metricsHandler := promhttp.Handler()
+	metricsHandler := customPromHandler()
 	if *vaultMetrics {
 		h, _ := metricsAggregatorWrapper(exporter, metricsHandler)
 		metricsHandler = h
@@ -512,7 +523,7 @@ func mainE() error {
 		rootHandler = authHTTPHandler(rootHandler)
 	}
 
-	http.Handle(*metricsPath, metricsHandler)
+	http.Handle(*metricsPath, gziphandler.GzipHandler(metricsHandler))
 	http.Handle("/", rootHandler)
 
 	log.Infoln("Listening on", *listenAddress)

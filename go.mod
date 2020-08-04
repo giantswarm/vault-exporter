@@ -3,6 +3,7 @@ module github.com/giantswarm/vault-exporter
 go 1.14
 
 require (
+	github.com/NYTimes/gziphandler v1.1.1
 	github.com/abbot/go-http-auth v0.4.0
 	github.com/frankban/quicktest v1.4.1 // indirect
 	github.com/giantswarm/microerror v0.2.0
