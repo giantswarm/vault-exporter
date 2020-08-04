@@ -9,9 +9,12 @@ import (
 	vault_api "github.com/hashicorp/vault/api"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	prometheusClient "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -38,6 +41,10 @@ var (
 		"The path to the certificate for Vault communication.").String()
 	vaultClientKey = kingpin.Flag("vault-tls-client-key",
 		"The path to the private key for Vault communication.").String()
+	vaultMetrics = kingpin.Flag("vault-metrics",
+		"Adds Vault's metrics from sys/health to the Vault exporter's metrics output. Only the primary node delivers these metrics. Env var: VAULT_METRICS").
+		Envar("VAULT_METRICS").
+		Default("true").Bool()
 	sslInsecure = kingpin.Flag("insecure-ssl",
 		"Set SSL to ignore certificate validation. Env var: SSL_INSECURE").
 		Envar("SSL_INSECURE").
@@ -360,6 +367,67 @@ func rootReqHandler() http.Handler {
 	return h
 }
 
+func parseMetricFamilies(sourceData io.Reader) (map[string]*prometheusClient.MetricFamily, error) {
+	parser := expfmt.TextParser{}
+	metricFamilies, err := parser.TextToMetricFamilies(sourceData)
+	if err != nil {
+		return nil, err
+	}
+	return metricFamilies, nil
+}
+
+func metricsAggregatorWrapper(e *Exporter, inner http.Handler) (http.Handler, error) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inner.ServeHTTP(w, r)
+
+		req := e.client.NewRequest("GET", "/v1/sys/metrics")
+		req.Params.Add("format", "prometheus")
+		res, err := e.client.RawRequest(req)
+		if err != nil {
+			log.Errorf("Failed to query metrics from Vault: %v", err)
+		}
+
+		// Only primary node delivers sys metrics
+		if res.StatusCode != http.StatusOK {
+			return
+		}
+
+		mfs := make(map[string]*prometheusClient.MetricFamily)
+		if res != nil {
+			mfs, err = parseMetricFamilies(res.Body)
+			if err != nil {
+				log.Errorf("Failed parsing metrics %v", err.Error())
+				return
+			}
+		}
+
+		allFamilies := make(map[string]*prometheusClient.MetricFamily)
+
+		for mfName, mf := range mfs {
+			if !strings.HasPrefix(*(mf.Name), "vault_") {
+				formatted := fmt.Sprintf("vault_%s", *mf.Name)
+				mf.Name = &formatted
+			}
+
+			if existingMf, ok := allFamilies[mfName]; ok {
+				for _, m := range mf.Metric {
+					existingMf.Metric = append(existingMf.Metric, m)
+				}
+			} else {
+				allFamilies[*mf.Name] = mf
+			}
+		}
+
+		encoder := expfmt.NewEncoder(w, expfmt.FmtText)
+		for _, f := range allFamilies {
+			err = encoder.Encode(f)
+			if err != nil {
+				log.Errorf("Failed parsing metrics %v", err.Error())
+			}
+		}
+	}), nil
+}
+
 func configureTLS() *tlsCliConfig {
 	// kingpin's .Bool with .Default("true") doesn't work as expected, so we parse the value ourselves
 	tlsEnableParsed, err := strconv.ParseBool(*tlsEnable)
@@ -419,6 +487,10 @@ func mainE() error {
 
 	rootHandler := rootReqHandler()
 	metricsHandler := promhttp.Handler()
+	if *vaultMetrics {
+		h, _ := metricsAggregatorWrapper(exporter, metricsHandler)
+		metricsHandler = h
+	}
 
 	authenticator, err := basicAuthProvider()
 	if err != nil {

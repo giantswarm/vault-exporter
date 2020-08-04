@@ -61,6 +61,8 @@ Flags:
                                  The path to the certificate for Vault communication.
       --vault-tls-client-key=VAULT-TLS-CLIENT-KEY  
                                  The path to the private key for Vault communication.
+      --vault-metrics            Adds Vault's metrics from sys/health to the Vault exporter's metrics output. Only the primary node delivers
+                                 these metrics. Env var: VAULT_METRICS
       --insecure-ssl             Set SSL to ignore certificate validation.
       --tls.enable="false"       Enable TLS (true/false). Env var: TLS_ENABLE
       --tls.prefer-server-cipher-suites="true"
@@ -83,6 +85,12 @@ Flags:
                           Set the log target and format. Example: "logger:syslog?appname=bob&local=7" or "logger:stdout?json=true"
       --version           Show application version.
 ```
+
+## Vault metrics
+
+A Vault primary node exposes under the endpoint `sys/metrics` some detailed metrics. For the sake of simplicity, 
+Vault exporter proxies these metrics and adds in case of a name clash the prefix _vault_ to the metric family  
+name. You can disable the Vault metrics by appending "--vault-metrics=false" to the command line.
 
 ## TLS Examples
 
