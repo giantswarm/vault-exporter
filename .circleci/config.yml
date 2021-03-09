@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  architect: giantswarm/architect@0.10.1
+  architect: giantswarm/architect@2.1.0
 
 workflows:
   build:
@@ -59,7 +59,6 @@ workflows:
           name: push-vault-exporter-to-aws-app-collection
           app_name: "vault-exporter"
           app_collection_repo: "azure-app-collection"
-          unique: "true"
           requires:
             - push-vault-exporter-to-control-plane-app-catalog
           filters:
@@ -75,7 +74,6 @@ workflows:
           name: push-vault-exporter-to-azure-app-collection
           app_name: "vault-exporter"
           app_collection_repo: "aws-app-collection"
-          unique: "true"
           requires:
             - push-vault-exporter-to-control-plane-app-catalog
           filters:
@@ -91,7 +89,6 @@ workflows:
           name: push-vault-exporter-to-kvm-app-collection
           app_name: "vault-exporter"
           app_collection_repo: "kvm-app-collection"
-          unique: "true"
           requires:
             - push-vault-exporter-to-control-plane-app-catalog
           filters:
