@@ -1,9 +1,9 @@
 DOCKER_IMAGE_NAME ?= grapeshot/vault_exporter
 
-vault_exporter: main.go
+vault-exporter:
 	go build -o $@ ./
 
-.uptodate: vault_exporter Dockerfile
+.uptodate: vault-exporter
 	docker build -t $(DOCKER_IMAGE_NAME):$(shell git rev-parse --short HEAD) .
 
 clean:
