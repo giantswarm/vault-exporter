@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 
@@ -29,6 +30,7 @@ var (
 	sslInsecure = kingpin.Flag("insecure-ssl",
 		"Set SSL to ignore certificate validation.").
 		Default("false").Bool()
+	exporterVersion = "unspecified"
 )
 
 const (
@@ -166,12 +168,12 @@ func main() {
 
 func mainE() error {
 	if (len(os.Args) > 1) && (os.Args[1] == "version") {
-		version.Print("vault_exporter")
+		fmt.Println(prettyVersion())
 		return nil
 	}
 
 	log.AddFlags(kingpin.CommandLine)
-	kingpin.Version(version.Print("vault_exporter"))
+	kingpin.Version(prettyVersion())
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
@@ -209,4 +211,8 @@ func mainE() error {
 	}
 
 	return nil
+}
+
+func prettyVersion() string {
+	return "vault_exporter version " + exporterVersion
 }

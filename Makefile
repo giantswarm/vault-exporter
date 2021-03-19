@@ -1,10 +1,11 @@
 DOCKER_IMAGE_NAME ?= grapeshot/vault_exporter
+VERSION ?= $(shell git describe --tags)
 
 vault_exporter: main.go
-	go build -o $@ ./
+	go build -ldflags "-X main.exporterVersion=$(VERSION)" -o $@ ./
 
 .uptodate: vault_exporter Dockerfile
-	docker build -t $(DOCKER_IMAGE_NAME):$(shell git rev-parse --short HEAD) .
+	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) .
 
 clean:
 	rm -f vault_exporter .uptodate
