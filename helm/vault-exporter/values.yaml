@@ -1,10 +1,10 @@
 image:
   name: "giantswarm/vault-exporter"
   tag: "[[ .Version ]]"
-Installation:
-  V1:
-    Registry:
-      Domain: quay.io
+
+registry:
+    domain: quay.io
+
 pod:
   user:
     id: 1000
@@ -13,3 +13,5 @@ pod:
 project:
   branch: "[[ .Branch ]]"
   commit: "[[ .SHA ]]"
+
+vaultAddress: ""

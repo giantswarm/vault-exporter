@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "resource.default.name" . }} 
+  name: {{ include "resource.default.name" . }}
   namespace: {{ include "resource.default.namespace" . }}
   labels:
     {{- include "labels.common" . | nindent 4 }}
@@ -37,8 +37,8 @@ spec:
       - name: {{ include "resource.default.name" . }}
         env:
         - name: VAULT_ADDR
-          value: '{{ .Values.Installation.V1.Auth.Vault.Address }}'
-        image: "{{ .Values.Installation.V1.Registry.Domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+          value: '{{ .Values.vaultAddress }}'
+        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         args:
         - "--vault-tls-cacert=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
         livenessProbe:
