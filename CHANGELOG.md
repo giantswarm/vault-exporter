@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `giantswarm.io/monitoring: "true"` label to enable Prometheus autodiscovery.
+
 ## [2.1.0] 2021-05-26
 
 ## [2.0.0] 2020-05-27
