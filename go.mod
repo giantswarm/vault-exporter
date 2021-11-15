@@ -12,9 +12,8 @@ require (
 	github.com/pierrec/lz4 v2.2.6+incompatible // indirect
 	github.com/prometheus/client_golang v1.4.0
 	github.com/prometheus/common v0.9.1
-	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad // indirect
-	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
-	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/square/go-jose.v2 v2.4.1 // indirect
 )
+
+replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
