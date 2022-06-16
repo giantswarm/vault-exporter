@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2022-06-16
+
 ### Changed
 
 - Update `architect-orb` to v4.8.0 to stop pushing to app collection helm chart.
@@ -35,7 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0]  2019-08-13
 
-[Unreleased]: https://github.com/giantswarm/vault-exporter/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/giantswarm/vault-exporter/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/giantswarm/vault-exporter/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/giantswarm/vault-exporter/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/giantswarm/vault-exporter/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/giantswarm/vault-exporter/compare/v1.0.0...v2.0.0
