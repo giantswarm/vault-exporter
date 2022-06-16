@@ -53,6 +53,19 @@ workflows:
             # Trigger the job also on git tag.
             tags:
               only: /^v.*/
+      
+      - architect/push-to-app-catalog:
+          context: "architect"
+          name: push-vault-exporter-to-playground-app-catalog
+          app_catalog: "giantswarm-playground"
+          chart: "vault-exporter"
+          # Make sure docker image is successfully built.
+          requires:
+            - push-vault-exporter-to-quay
+          filters:
+            # Trigger the job also on git tag.
+            tags:
+              only: /^v.*/
 
       - architect/push-to-app-collection:
           context: "architect"
