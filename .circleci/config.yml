@@ -58,6 +58,7 @@ workflows:
           context: "architect"
           name: push-vault-exporter-to-playground-app-catalog
           app_catalog: "giantswarm-playground"
+          app_catalog_test: "giantswarm-playground"
           chart: "vault-exporter"
           # Make sure docker image is successfully built.
           requires:
