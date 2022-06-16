@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1] - 2022-06-16
 
+### Added
+
+- Push to `giantswarm-playground-catalog`.
+
 ### Changed
 
 - Update `architect-orb` to v4.8.0 to stop pushing to app collection helm chart.
