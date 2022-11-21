@@ -101,11 +101,6 @@ func NewExporter(logger micrologger.Logger) (*Exporter, error) {
 		}
 	}
 
-	_, err := vaultConfig.ParseAddress("https://127.0.0.1:34353")
-	if err != nil {
-		panic(err)
-	}
-
 	client, err := vault_api.NewClient(vaultConfig)
 	if err != nil {
 		return nil, err
