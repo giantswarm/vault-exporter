@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/giantswarm/microerror"
+	"github.com/giantswarm/micrologger"
 	vault_api "github.com/hashicorp/vault/api"
+	auth "github.com/hashicorp/vault/api/auth/kubernetes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
@@ -67,10 +70,11 @@ var (
 // the Prometheus metrics package.
 type Exporter struct {
 	client *vault_api.Client
+	logger micrologger.Logger
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter() (*Exporter, error) {
+func NewExporter(logger micrologger.Logger) (*Exporter, error) {
 	vaultConfig := vault_api.DefaultConfig()
 
 	if *sslInsecure {
@@ -97,13 +101,21 @@ func NewExporter() (*Exporter, error) {
 		}
 	}
 
+	_, err := vaultConfig.ParseAddress("https://127.0.0.1:34353")
+	if err != nil {
+		panic(err)
+	}
+
 	client, err := vault_api.NewClient(vaultConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	client.SetClientTimeout(5 * time.Second)
+
 	return &Exporter{
 		client: client,
+		logger: logger,
 	}, nil
 }
 
@@ -132,8 +144,28 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(
 			up, prometheus.GaugeValue, 0,
 		)
-		log.Errorf("Failed to collect health from Vault server: %v", err)
+		e.logger.Errorf(context.Background(), err, "Failed to collect health from Vault server")
 		return
+	}
+
+	k8sAuth, err := auth.NewKubernetesAuth("healthcheck")
+	if err != nil {
+		ch <- prometheus.MustNewConstMetric(
+			up, prometheus.GaugeValue, 0,
+		)
+		e.logger.Errorf(context.Background(), err, "Failed to initialize k8s auth")
+		return
+	}
+
+	_, err = e.client.Auth().Login(context.Background(), k8sAuth)
+	if err != nil {
+		if err != nil {
+			ch <- prometheus.MustNewConstMetric(
+				up, prometheus.GaugeValue, 0,
+			)
+			e.logger.Errorf(context.Background(), err, "Failed to authenticate using kubernetes auth")
+			return
+		}
 	}
 
 	ch <- prometheus.MustNewConstMetric(
@@ -170,15 +202,21 @@ func mainE() error {
 		return nil
 	}
 
-	log.AddFlags(kingpin.CommandLine)
+	ctx := context.Background()
+
+	logger, err := micrologger.New(micrologger.Config{})
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
 	kingpin.Version(version.Print("vault_exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	log.Infoln("Starting vault_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
+	logger.Debugf(ctx, "Starting vault_exporter %s", version.Info())
+	logger.Debugf(ctx, "Build context %s", version.BuildContext())
 
-	exporter, err := NewExporter()
+	exporter, err := NewExporter(logger)
 	if err != nil {
 		return microerror.Mask(err)
 	}
@@ -201,7 +239,7 @@ func mainE() error {
 		}
 	})
 
-	log.Infoln("Listening on", *listenAddress)
+	logger.Debugf(ctx, "Listening on %s", *listenAddress)
 
 	err = http.ListenAndServe(*listenAddress, nil)
 	if err != nil {
