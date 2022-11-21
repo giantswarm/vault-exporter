@@ -236,7 +236,7 @@ func mainE() error {
 
 	logger.Debugf(ctx, "Listening on %s", *listenAddress)
 
-	http.ListenAndServe(*listenAddress, nil)
+	http.ListenAndServe(*listenAddress, nil) //nolint:errcheck
 
 	return nil
 }
