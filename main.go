@@ -236,7 +236,10 @@ func mainE() error {
 
 	logger.Debugf(ctx, "Listening on %s", *listenAddress)
 
-	http.ListenAndServe(*listenAddress, nil) //nolint:errcheck
+	err = http.ListenAndServe(*listenAddress, nil) //nolint
+	if err != nil {
+		return microerror.Mask(err)
+	}
 
 	return nil
 }
