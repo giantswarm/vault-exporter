@@ -154,13 +154,11 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	_, err = e.client.Auth().Login(context.Background(), k8sAuth)
 	if err != nil {
-		if err != nil {
-			ch <- prometheus.MustNewConstMetric(
-				up, prometheus.GaugeValue, 0,
-			)
-			e.logger.Errorf(context.Background(), err, "Failed to authenticate using kubernetes auth")
-			return
-		}
+		ch <- prometheus.MustNewConstMetric(
+			up, prometheus.GaugeValue, 0,
+		)
+		e.logger.Errorf(context.Background(), err, "Failed to authenticate using kubernetes auth")
+		return
 	}
 
 	ch <- prometheus.MustNewConstMetric(
