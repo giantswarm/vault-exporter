@@ -1,6 +1,6 @@
 # DO NOT EDIT. Generated with:
 #
-#    devctl@4.7.0
+#    devctl@5.12.0
 #
 name: Create Release
 on:
@@ -33,7 +33,10 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          title="$(echo "${{ github.event.head_commit.message }}" | head -n 1 -)"
+          title="$(cat <<- 'COMMIT_MESSAGE_END' | head -n 1 -
+          ${{ github.event.head_commit.message }}
+          COMMIT_MESSAGE_END
+          )"
           # Matches strings like:
           #
           #   - "Release v1.2.3"
@@ -42,15 +45,15 @@ jobs:
           #   - "Release v1.2.3-r4 (#56)"
           #
           # And outputs version part (1.2.3).
-          if echo $title | grep -iqE '^Release v[0-9]+\.[0-9]+\.[0-9]+([.-][^ .-][^ ]*)?( \(#[0-9]+\))?$' ; then
-            version=$(echo $title | cut -d ' ' -f 2)
+          if echo "${title}" | grep -iqE '^Release v[0-9]+\.[0-9]+\.[0-9]+([.-][^ .-][^ ]*)?( \(#[0-9]+\))?$' ; then
+          version=$(echo "${title}" | cut -d ' ' -f 2)
           fi
           version="${version#v}" # Strip "v" prefix.
-          echo "version=\"$version\""
-          echo "::set-output name=version::${version}"
+          echo "version=\"${version}\""
+          echo "version=${version}" >> $GITHUB_OUTPUT
       - name: Checkout code
         if: ${{ steps.get_version.outputs.version != '' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Get project.go path
         id: get_project_go_path
         if: ${{ steps.get_version.outputs.version != '' }}
@@ -60,22 +63,25 @@ jobs:
             path=''
           fi
           echo "path=\"$path\""
-          echo "::set-output name=path::${path}"
+          echo "path=${path}" >> $GITHUB_OUTPUT
       - name: Check if reference version
         id: ref_version
         run: |
-          title="$(echo "${{ github.event.head_commit.message }}" | head -n 1 -)"
-          if echo $title | grep -qE '^release v[0-9]+\.[0-9]+\.[0-9]+([.-][^ .-][^ ]*)?( \(#[0-9]+\))?$' ; then
-            version=$(echo $title | cut -d ' ' -f 2)
+          title="$(cat <<- 'COMMIT_MESSAGE_END' | head -n 1 -
+          ${{ github.event.head_commit.message }}
+          COMMIT_MESSAGE_END
+          )"
+          if echo "${title}" | grep -qE '^release v[0-9]+\.[0-9]+\.[0-9]+([.-][^ .-][^ ]*)?( \(#[0-9]+\))?$' ; then
+            version=$(echo "${title}" | cut -d ' ' -f 2)
           fi
-          version=$(echo $title | cut -d ' ' -f 2)
+          version=$(echo "${title}" | cut -d ' ' -f 2)
           version="${version#v}" # Strip "v" prefix.
           refversion=false
           if [[ "${version}" =~ ^[0-9]+.[0-9]+.[0-9]+-[0-9]+$ ]]; then
             refversion=true
           fi
-          echo "refversion =\"$refversion\""
-          echo "::set-output name=refversion::$refversion"
+          echo "refversion =\"${refversion}\""
+          echo "refversion=${refversion}" >> $GITHUB_OUTPUT
   update_project_go:
     name: Update project.go
     runs-on: ubuntu-20.04
@@ -87,17 +93,17 @@ jobs:
         uses: giantswarm/install-binary-action@v1.0.0
         with:
           binary: "architect"
-          version: "3.4.0"
+          version: "6.1.0"
       - name: Install semver
         uses: giantswarm/install-binary-action@v1.0.0
         with:
           binary: "semver"
-          version: "3.0.0"
+          version: "3.2.0"
           download_url: "https://github.com/fsaintjacques/${binary}-tool/archive/${version}.tar.gz"
           tarball_binary_path: "*/src/${binary}"
           smoke_test: "${binary} --version"
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Update project.go
         id: update_project_go
         env:
@@ -108,17 +114,19 @@ jobs:
           version="${{ needs.gather_facts.outputs.version }}"
           new_version="$(semver bump patch $version)-dev"
           echo "version=\"$version\" new_version=\"$new_version\""
-          echo "::set-output name=new_version::${new_version}"
+          echo "new_version=${new_version}" >> $GITHUB_OUTPUT
           sed -Ei "s/(version[[:space:]]*=[[:space:]]*)\"${version}\"/\1\"${new_version}\"/" $file
           if git diff --exit-code $file ; then
             echo "error: no changes in \"$file\"" >&2
             exit 1
           fi
+      - name: Set up git identity
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
       - name: Commit changes
         run: |
           file="${{ needs.gather_facts.outputs.project_go_path }}"
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
           git add $file
           git commit -m "Bump version to ${{ steps.update_project_go.outputs.new_version }}"
       - name: Push changes
@@ -146,7 +154,7 @@ jobs:
       upload_url: ${{ steps.create_gh_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.sha }}
       - name: Ensure correct version in project.go
@@ -155,10 +163,19 @@ jobs:
           file="${{ needs.gather_facts.outputs.project_go_path }}"
           version="${{ needs.gather_facts.outputs.version }}"
           grep -qE "version[[:space:]]*=[[:space:]]*\"$version\"" $file
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          version: ${{ needs.gather_facts.outputs.version }}
+          path: ./CHANGELOG.md
+      - name: Set up git identity
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
       - name: Create tag
         run: |
           version="${{ needs.gather_facts.outputs.version }}"
-          git config --local user.name "github-actions"
           git tag "v$version" ${{ github.sha }}
       - name: Push tag
         env:
@@ -171,6 +188,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          body: ${{ steps.changelog_reader.outputs.changes }}
           tag_name: "v${{ needs.gather_facts.outputs.version }}"
           release_name: "v${{ needs.gather_facts.outputs.version }}"
 
@@ -190,7 +208,7 @@ jobs:
           tarball_binary_path: "*/src/${binary}"
           smoke_test: "${binary} --version"
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Clone the whole history, not just the most recent commit.
       - name: Fetch all tags and branches
