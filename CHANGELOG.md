@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add login using kubernetes auth in the scraping function to catch storage-level errors.
 
+### Removed
+
+- Don't push releases to KVM app collection.
+
 ## [2.2.1] - 2022-06-16
 
 ### Added
