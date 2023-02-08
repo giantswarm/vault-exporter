@@ -1,0 +1,86 @@
+{
+    "$schema": "http://json-schema.org/schema#",
+    "type": "object",
+    "properties": {
+        "image": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
+        },
+        "pod": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        },
+        "podSecurityContext": {
+            "type": "object",
+            "properties": {
+                "seccompProfile": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "project": {
+            "type": "object",
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "commit": {
+                    "type": "string"
+                }
+            }
+        },
+        "registry": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                }
+            }
+        },
+        "securityContext": {
+            "type": "object",
+            "properties": {
+                "seccompProfile": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "vaultAddress": {
+            "type": "string"
+        }
+    }
+}

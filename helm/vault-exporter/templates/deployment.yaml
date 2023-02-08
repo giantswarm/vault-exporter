@@ -33,6 +33,9 @@ spec:
       securityContext:
         runAsUser: {{ .Values.pod.user.id }}
         runAsGroup: {{ .Values.pod.group.id }}
+        {{- with .Values.podSecurityContext }}
+          {{- . | toYaml | nindent 8 }}
+        {{- end }}
       containers:
       - name: {{ include "resource.default.name" . }}
         env:
@@ -47,6 +50,10 @@ spec:
             port: 9410
           initialDelaySeconds: 30
           timeoutSeconds: 1
+        securityContext:
+          {{- with .Values.securityContext }}
+            {{- . | toYaml | nindent 10 }}
+          {{- end }}
         resources:
           requests:
             cpu: 100m
