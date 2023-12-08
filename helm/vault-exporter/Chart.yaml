@@ -7,3 +7,4 @@ name: "vault-exporter"
 version: "[[ .Version ]]"
 annotations:
   config.giantswarm.io/version: 1.x.x
+  application.giantswarm.io/team: phoenix
