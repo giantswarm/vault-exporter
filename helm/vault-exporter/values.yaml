@@ -3,7 +3,7 @@ image:
   tag: "[[ .Version ]]"
 
 registry:
-  domain: quay.io
+  domain: gsoci.azurecr.io
 
 pod:
   user:
