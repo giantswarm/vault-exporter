@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2025-09-02
+
 ### Changed
 
 - Load container image from `gsoci.azurecr.io` by default.
@@ -74,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0]  2019-08-13
 
-[Unreleased]: https://github.com/giantswarm/vault-exporter/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/giantswarm/vault-exporter/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/giantswarm/vault-exporter/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/giantswarm/vault-exporter/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/giantswarm/vault-exporter/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/giantswarm/vault-exporter/compare/v2.3.0...v2.3.1
